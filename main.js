@@ -1,38 +1,58 @@
 // main.js
-const { app, BrowserWindow } = require('electron') // 1. 导入必要的模块
+// 主进程入口文件
+const { app, BrowserWindow, ipcMain } = require('electron')
+const path = require('node:path')
 
-// 3. 封装创建窗口的逻辑
-const createWindow = () => {
-  // 创建一个新的浏览器窗口实例
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600
-  })
-
-  // 将 index.html 文件加载到新创建的窗口中
-  win.loadFile('index.html')
+// 只在开发环境启用热重载，避免打包后报错
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    // 对整个项目目录做文件监听
+    // 注意：这里 electron 可执行文件指向项目下的 node_modules/.bin/electron
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
+      hardResetMethod: 'exit',
+      ignored: /node_modules|[/\\]\./
+    })
+  } catch (e) {
+    console.warn('electron-reload 加载失败：', e.message)
+  }
 }
 
-// 2. 监听应用的 ready 事件
-// 只有在 app ready 之后才能创建窗口
+// 创建浏览器窗口
+const createWindow = () => {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
+  })
+
+  win.loadFile('index.html')
+
+  // 开发阶段默认打开 DevTools
+  if (process.env.NODE_ENV !== 'production') {
+    win.webContents.openDevTools()
+  }
+}
+
+// 应用准备就绪后创建窗口，并注册主进程 IPC
 app.whenReady().then(() => {
+  ipcMain.handle('ping', () => {
+    return 'pong'
+  })
   createWindow()
 })
 
-// main.js (在 app.whenReady() 块的后面)
-
-// 1. Windows 和 Linux 平台：关闭所有窗口时退出应用
+// 所有窗口关闭时退出（macOS 除外）
 app.on('window-all-closed', () => {
-  // macOS 应用通常即使所有窗口关闭，也会保持运行（在 Dock 栏上）
-  // 只有非 macOS 平台 (win32, linux) 才应该在所有窗口关闭时退出
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// 2. macOS 平台：在没有窗口时点击 Dock 图标重新打开窗口
+// macOS 上点击 Dock 图标时，如果没有窗口则重新创建
 app.on('activate', () => {
-  // 在 macOS 上，如果应用没有打开任何窗口，但用户点击了 Dock 图标
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }

@@ -18,6 +18,7 @@
   "homepage": "https://github.com/liv-rong/my-electron-app#readme",
   "description": "",
   "devDependencies": {
-    "electron": "^39.2.1"
+    "electron": "^39.2.1",
+    "electron-reload": "2.0.0-alpha.1"
   }
 }
